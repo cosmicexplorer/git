@@ -1,9 +1,12 @@
 /* Generated with cbindgen:0.8.7 */
+#pragma once
 
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "memory.h"
 
 typedef enum {
   ExpandDirectoriesSucceeded,

@@ -30,7 +30,7 @@ int cmd_pull_ref(int argc, const char **argv, const char *prefix)
                            N_("the ref to download")),
                 OPT_END(),
         };
-        if (argv == 2 && !strcmp(argv[1], "-h")) {
+        if (argc == 2 && !strcmp(argv[1], "-h")) {
                 usage_with_options(builtin_pull_ref_usage,
                                    builtin_pull_ref_options);
         }

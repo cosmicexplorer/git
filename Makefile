@@ -1033,6 +1033,7 @@ LIB_OBJS += ws.o
 LIB_OBJS += wt-status.o
 LIB_OBJS += xdiff-interface.o
 LIB_OBJS += zlib.o
+LIB_OBJS += twttr/builtin/remexec-backend.o
 
 BUILTIN_OBJS += builtin/add.o
 BUILTIN_OBJS += builtin/am.o
@@ -3201,7 +3202,7 @@ check-docs::
 		test -f "Documentation/$$v.txt" || \
 		echo "no doc: $$v"; \
 		sed -e '1,/^### command list/d' -e '/^#/d' command-list.txt | \
-		grep -q "^$$v[ 	]" || \
+		grep -q "^$$v[	]" || \
 		case "$$v" in \
 		git) ;; \
 		*) echo "no link: $$v";; \
@@ -3211,7 +3212,7 @@ check-docs::
 		sed -e '1,/^### command list/d' \
 		    -e '/^#/d' \
 		    -e '/guide$$/d' \
-		    -e 's/[ 	].*//' \
+		    -e 's/[	].*//' \
 		    -e 's/^/listed /' command-list.txt; \
 		$(MAKE) -C Documentation print-man1 | \
 		grep '\.txt$$' | \
