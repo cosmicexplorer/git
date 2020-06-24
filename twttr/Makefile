@@ -4,7 +4,7 @@ TWTTR_CFLAGS  = -DTWTTR $(TWTTR_INCJANNSON)
 TWTTR_LDFLAGS = $(TWTTR_LIBCURL) $(TWTTR_LIBJANNSON)
 
 ifeq ($(uname_S),Darwin)
-	TWTTR_LDFLAGS += -Wl,-rpath,@executable_path/../.. -Wl,-rpath,@executable_path/.. -Wl,-rpath,$(prefix)
+	TWTTR_LDFLAGS += -L/Users/dmcclanahan/projects/active/upc/local/target/debug -lmemory -ldirectory -Wl,-rpath,@executable_path/../.. -Wl,-rpath,@executable_path/.. -Wl,-rpath,$(prefix)
 else
 	BASIC_LDFLAGS += -Wl,-R,\$$ORIGIN/../../lib -Wl,-R,\$$ORIGIN/../lib -Wl,R,$(prefix)/lib
 endif

@@ -21,13 +21,7 @@
 #include "string-list.h"
 #include "tree.h"
 
-#include "hashing.h"
-#include "directory.h"
-#include "memory.h"
-
-#if FINGERPRINT_SIZE != GIT_MAX_RAWSZ
-#error "expected FINGERPRINT_SIZE and GIT_MAX_RAWSZ to be the same!"
-#endif
+#include "upc.h"
 
 #include "remexec-backend.h"
 
@@ -85,7 +79,8 @@ static int tree_reader(const struct object_id *oid, struct strbuf *base,
 {
         int baselen = base->len;
 
-        /* From merge-recursive.c:save_files_dirs(). */
+        /* From merge-recursive.c:save_files_dirs() -- append the parent
+           directory (relative to the repo root) to the current filename. */
         strbuf_addstr(base, path);
 
         /* char *cur_path = null_term_strbuf(*base); */
@@ -95,13 +90,35 @@ static int tree_reader(const struct object_id *oid, struct strbuf *base,
         switch (object_type(mode)) {
         case OBJ_TREE:
                 HACKY_LOG("TREE!");
-                ret = READ_TREE_RECURSIVE;
+                DirectoryDigest digest = as_digest(*oid);
+                switch (check_directory_digest_existence(digest)) {
+                case DigestExists:
+                        // If the LMDB backend already has this parent digest,
+                        // we do not need to check all the recursive chlidren.
+                        ret = 0;
+                        break;
+                case DigestDoesNotExist:
+                        // If the digest was *not* already known, then we
+                        // recurse!
+                        // FIXME: coordinate the recursion via the context
+                        // object!
+                        ret = READ_TREE_RECURSIVE;
+                        break;
+                default:
+                        error("weird unknown error when trying to load oid: %s",
+                              oid_to_hex(oid));
+                }
                 break;
         case OBJ_BLOB:
                 HACKY_LOG("BLOB!");
+                // Allocate the file in shared memory. If it was already
+                // allocated, it will no-op quickly.
+                ShmKey _key = allocate_shm_key(*oid);
                 break;
         default:
-                HACKY_LOG_ARG("unrecognized mode: %d\n", mode);
+                HACKY_LOG_ARG(
+                        "unrecognized mode when walking commit tree: %d\n",
+                        mode);
                 ret = -1;
         }
 

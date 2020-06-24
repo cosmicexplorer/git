@@ -1,12 +1,18 @@
 /* Generated with cbindgen:0.8.7 */
-#pragma once
 
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "hashing.h"
 #include "memory.h"
+
+typedef enum {
+  DigestExists,
+  DigestDoesNotExist,
+  OtherUnknownError,
+} DigestCheckResult;
 
 typedef enum {
   ExpandDirectoriesSucceeded,
@@ -65,6 +71,8 @@ typedef struct {
   char *error_message;
   UploadDirectoriesResultStatus status;
 } UploadDirectoriesResult;
+
+DigestCheckResult check_directory_digest_existence(DirectoryDigest digest);
 
 void directories_expand(const ExpandDirectoriesRequest *request, ExpandDirectoriesResult *result);
 

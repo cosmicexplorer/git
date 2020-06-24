@@ -1034,6 +1034,7 @@ LIB_OBJS += wt-status.o
 LIB_OBJS += xdiff-interface.o
 LIB_OBJS += zlib.o
 LIB_OBJS += twttr/builtin/remexec-backend.o
+LIB_OBJS += twttr/builtin/upc.o
 
 BUILTIN_OBJS += builtin/add.o
 BUILTIN_OBJS += builtin/am.o
@@ -1361,6 +1362,8 @@ ifdef NO_LIBPCRE1_JIT
 	BASIC_CFLAGS += -DNO_LIBPCRE1_JIT
 endif
 endif
+
+EXTLIBS += -L/Users/dmcclanahan/projects/active/upc/local/target/debug -lmemory -ldirectory
 
 ifdef LIBPCREDIR
 	BASIC_CFLAGS += -I$(LIBPCREDIR)/include
