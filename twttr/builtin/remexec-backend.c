@@ -9,6 +9,8 @@ struct remexec_ref_store {
 
 struct remexec_ref_store *remexec_ref_store_create()
 {
+        /* NB: xcalloc() is used without explanation in packed-backend.c's
+         * create method. This is just cargo culting that. */
         struct remexec_ref_store *refs = xcalloc(1, sizeof(*refs));
         struct ref_store *ref_store = (struct ref_store *)refs;
 
