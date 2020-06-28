@@ -1,8 +1,8 @@
 #pragma once
 
-#include "directory.h"
 #include "hashing.h"
 #include "memory.h"
+#include "directory.h"
 
 #include "hash.h"
 #include "object.h"
@@ -12,6 +12,9 @@
 #error "expected FINGERPRINT_SIZE and GIT_MAX_RAWSZ to be the same!"
 #endif
 
-ShmKey allocate_shm_key(struct object_id oid);
+Fingerprint translate_oid_to_fingerprint(struct object_id oid);
 
-DirectoryDigest as_digest(struct object_id oid);
+Digest allocate_shm_key(struct object_id oid);
+
+DirectoryOidCheckMappingResult check_contains_directory(struct object_id oid,
+                                                        Digest *digest);

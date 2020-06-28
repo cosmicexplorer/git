@@ -1,5 +1,4 @@
 /* Generated with cbindgen:0.8.7 */
-#pragma once
 
 #include <stdarg.h>
 #include <stdbool.h>

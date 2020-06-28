@@ -2,7 +2,14 @@
 
 #include "repository.h"
 
-ShmKey allocate_shm_key(struct object_id oid)
+Fingerprint translate_oid_to_fingerprint(struct object_id oid)
+{
+        Fingerprint fp;
+        memcpy(fp._0, oid.hash, FINGERPRINT_SIZE);
+        return fp;
+}
+
+Digest allocate_shm_key(struct object_id oid)
 {
         unsigned long blob_size;
         enum object_type type;
@@ -18,7 +25,7 @@ ShmKey allocate_shm_key(struct object_id oid)
 
         /* We can just take the oid hash directly here, because the fingerprints
            are exactly the same length in bytes. */
-        Fingerprint fp = { oid.hash };
+        Fingerprint fp = translate_oid_to_fingerprint(oid);
         ShmKey key = { blob_size, fp };
         ShmAllocateRequest request = { key, buffer };
 
@@ -29,27 +36,14 @@ ShmKey allocate_shm_key(struct object_id oid)
                           result.error_message);
         }
 
-        return key;
+        Digest digest = { fp, blob_size };
+        return digest;
 }
 
-DirectoryDigest as_digest(struct object_id oid)
+DirectoryOidCheckMappingResult check_contains_directory(struct object_id oid,
+                                                        Digest *digest)
 {
-        unsigned long blob_size;
-        enum object_type type;
-        /* FIXME: is not freeing this a leak? */
-        void *buffer =
-                repo_read_object_file(the_repository, &oid, &type, &blob_size);
-        if (!buffer) {
-                die_errno(_("object id '%s' did not exist ; expected tree"),
-                          oid_to_hex(&oid));
-        }
-        if (type != OBJ_TREE) {
-                die_errno(_("object id '%s' was not a tree"), oid_to_hex(&oid));
-        }
-
-        /* We can just take the oid hash directly here, because the fingerprints
-           are exactly the same length in bytes. */
-        Fingerprint fp = { oid.hash };
-        DirectoryDigest digest = { blob_size, fp };
-        return digest;
+        Fingerprint fp = translate_oid_to_fingerprint(oid);
+        Oid new_oid = { fp };
+        return directory_oid_check_mapping(new_oid, digest);
 }

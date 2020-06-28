@@ -1,12 +1,9 @@
 /* Generated with cbindgen:0.8.7 */
-#pragma once
 
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-#include "hashing.h"
 
 #define DEFAULT_SHM_REGION_SIZE 2000000
 
@@ -153,6 +150,12 @@ typedef enum {
 } ShmAllocateResultStatus;
 
 typedef enum {
+  ShmCheckAllocationExists,
+  ShmCheckAllocationDoesNotExist,
+  ShmCheckAllocationOtherError,
+} ShmCheckExistsResult;
+
+typedef enum {
   DeletionSucceeded,
   DeleteDidNotExist,
   DeleteInternalError,
@@ -182,6 +185,11 @@ typedef struct {
   char *error_message;
   ShmAllocateResultStatus status;
 } ShmAllocateResult;
+
+typedef struct {
+  const void *source;
+  uint64_t size_bytes;
+} ShmCheckExistsRequest;
 
 typedef struct {
   ShmKey key;
@@ -262,6 +270,8 @@ typedef struct {
 } __shmid_ds_new;
 
 void shm_allocate(const ShmAllocateRequest *request, ShmAllocateResult *result);
+
+ShmCheckExistsResult shm_check_if_exists(const ShmCheckExistsRequest *request);
 
 void shm_delete(const ShmDeleteRequest *request, ShmDeleteResult *result);
 

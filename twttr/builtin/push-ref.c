@@ -7,6 +7,8 @@
 #include "commit-graph.h"
 #include "config.h"
 #include "hash.h"
+#include "hashmap.h"
+#include "merge-recursive.h"
 #include "object.h"
 #include "object-store.h"
 #include "packfile.h"
@@ -65,12 +67,16 @@ static int parse_push_ref_options(int argc, const char **argv,
         return 0;
 }
 
-static char *null_term_strbuf(struct strbuf sb)
+struct tree_traversal_options {
+        TreeTraversalFFIContext ctx;
+};
+
+static char *strbuf_dup(const struct strbuf *s)
 {
-        char *s = malloc(sb.len + 1);
-        memcpy(s, sb.buf, sb.len);
-        s[sb.len] = '\0';
-        return s;
+        char *ret = malloc(s->len + 1);
+        ret[s->len] = '\0';
+        memcpy(ret, s->buf, s->len);
+        return ret;
 }
 
 static int tree_reader(const struct object_id *oid, struct strbuf *base,
@@ -78,42 +84,53 @@ static int tree_reader(const struct object_id *oid, struct strbuf *base,
                        void *context)
 {
         int baselen = base->len;
+        struct tree_traversal_options *opts =
+                (struct tree_traversal_options *)context;
+
+        char *parent_directory = strbuf_dup(base);
 
         /* From merge-recursive.c:save_files_dirs() -- append the parent
            directory (relative to the repo root) to the current filename. */
         strbuf_addstr(base, path);
 
-        /* char *cur_path = null_term_strbuf(*base); */
-        /* HACKY_LOG_ARG("cur_path: %s\n", cur_path); */
-        /* FREE_AND_NULL(cur_path); */
         int ret = 0;
+        Digest digest;
         switch (object_type(mode)) {
         case OBJ_TREE:
                 HACKY_LOG("TREE!");
-                DirectoryDigest digest = as_digest(*oid);
-                switch (check_directory_digest_existence(digest)) {
-                case DigestExists:
+                switch (check_contains_directory(*oid, &digest)) {
+                case OidMappingExists:
+                        HACKY_LOG("MAPPING EXISTS!");
                         // If the LMDB backend already has this parent digest,
                         // we do not need to check all the recursive chlidren.
+                        tree_traversal_add_known_directory(&opts->ctx,
+                                                           parent_directory,
+                                                           path, &digest, oid);
                         ret = 0;
                         break;
-                case DigestDoesNotExist:
+                case OidMappingDoesNotExist:
+                        HACKY_LOG_ARG("MAPPING DOES NOT EXIST, %s",
+                                      oid_to_hex(oid));
                         // If the digest was *not* already known, then we
                         // recurse!
-                        // FIXME: coordinate the recursion via the context
-                        // object!
+                        tree_traversal_add_directory(
+                                &opts->ctx, parent_directory, path, oid);
                         ret = READ_TREE_RECURSIVE;
                         break;
                 default:
                         error("weird unknown error when trying to load oid: %s",
                               oid_to_hex(oid));
+                        ret = -1;
                 }
                 break;
         case OBJ_BLOB:
                 HACKY_LOG("BLOB!");
                 // Allocate the file in shared memory. If it was already
                 // allocated, it will no-op quickly.
-                ShmKey _key = allocate_shm_key(*oid);
+                digest = allocate_shm_key(*oid);
+                tree_traversal_add_file(&opts->ctx, parent_directory, path,
+                                        &digest);
+                ret = 0;
                 break;
         default:
                 HACKY_LOG_ARG(
@@ -122,6 +139,8 @@ static int tree_reader(const struct object_id *oid, struct strbuf *base,
                 ret = -1;
         }
 
+free_strings:
+        free(parent_directory);
         strbuf_setlen(base, baselen);
         return ret;
 }
@@ -153,6 +172,20 @@ static int sync_refs(struct push_params params)
                         continue;
                 }
                 HACKY_LOG("TREE!");
+
+                Digest digest;
+                switch (check_contains_directory(oid, &digest)) {
+                case OidMappingExists:
+                        HACKY_LOG_ARG("SKIPPING OID: %s\n", oid_to_hex(&oid));
+                        continue;
+                case OidMappingDoesNotExist:
+                        HACKY_LOG_ARG("oid %s was not found\n", oid_to_hex(&oid));
+                        break;
+                case OidMappingOtherError:
+                        HACKY_LOG_ARG("error for oid %s\n", oid_to_hex(&oid));
+                        break;
+                }
+
                 /* (2) [Traverse all the linked objects!!] and: [write them into
                    the remexec CAS
                    store!!] in a way that will be unambiguously reproduced by a
@@ -160,42 +193,25 @@ static int sync_refs(struct push_params params)
                 struct pathspec match_all;
                 memset(&match_all, 0, sizeof(match_all));
 
+                struct tree_traversal_options opts;
+                tree_traversal_init_context(&opts.ctx);
+
+                tree_traversal_set_root_oid(&opts.ctx, &oid);
                 if (read_tree_recursive(the_repository, tree, "", 0, 0,
-                                        &match_all, tree_reader, NULL)) {
+                                        &match_all, tree_reader, &opts)) {
                         error("failed to read tree for ref '%s' to push",
                               refname);
-                        goto free_tree;
+                        goto free_hashmap;
                 }
+
+        free_hashmap:
+                tree_traversal_destroy_context(&opts.ctx);
         free_tree:
                 free_tree_buffer(tree);
                 continue;
         }
-        /* const struct commit *commit; */
-        /* if (prepare_revision_walk(&params.revs)) { */
-        /*         die(_("revision walk setup failed")); */
-        /* } */
-        /* while ((commit = get_revision(&params.revs))) { */
-        /*         struct object_id oid = commit->object.oid; */
-        /*         const char *printed = print_oid_leak_string(oid); */
-        /*         fprintf(stderr, "oid: %s\n", printed); */
-        /*         free(printed); */
-        /* } */
-        /* reset_revision_walk(); */
-
-        /* if (!commits) { */
-        /*         error(_("no revisions provided!")); */
-        /*         return 1; */
-        /* } */
-        /* printf("wow: %s\n", params.ref); */
+        return 0;
 }
-
-/* static const char *print_oid_leak_string(struct object_id oid) */
-/* { */
-/*         char *s = malloc(GIT_MAX_RAWSZ + 1); */
-/*         memcpy(s, &oid, GIT_MAX_RAWSZ); */
-/*         s[GIT_MAX_RAWSZ] = '\0'; */
-/*         return s; */
-/* } */
 
 int cmd_push_ref(int argc, const char **argv, const char *prefix)
 {
