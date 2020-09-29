@@ -9,6 +9,13 @@ Fingerprint translate_oid_to_fingerprint(struct object_id oid)
         return fp;
 }
 
+Oid translate_oid_new_oid(struct object_id oid)
+{
+        Fingerprint fp = translate_oid_to_fingerprint(oid);
+        Oid new_oid = { fp };
+        return new_oid;
+}
+
 Digest allocate_shm_key(struct object_id oid)
 {
         unsigned long blob_size;
@@ -43,7 +50,6 @@ Digest allocate_shm_key(struct object_id oid)
 DirectoryOidCheckMappingResult check_contains_directory(struct object_id oid,
                                                         Digest *digest)
 {
-        Fingerprint fp = translate_oid_to_fingerprint(oid);
-        Oid new_oid = { fp };
+        Oid new_oid = translate_oid_new_oid(oid);
         return directory_oid_check_mapping(new_oid, digest);
 }

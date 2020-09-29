@@ -14,6 +14,8 @@
 
 Fingerprint translate_oid_to_fingerprint(struct object_id oid);
 
+Oid translate_oid_new_oid(struct object_id oid);
+
 Digest allocate_shm_key(struct object_id oid);
 
 DirectoryOidCheckMappingResult check_contains_directory(struct object_id oid,

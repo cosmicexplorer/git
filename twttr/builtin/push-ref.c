@@ -163,12 +163,15 @@ static int sync_refs(struct push_params params)
                 struct commit *commit =
                         lookup_commit_reference(the_repository, &oid);
                 if (!commit) {
+                        error("could not locate commit for oid %s", oid_hex);
                         continue;
                 }
                 HACKY_LOG("COMMIT!");
                 struct tree *tree =
                         get_commit_tree_in_graph(the_repository, commit);
                 if (!tree) {
+                        error("could not locate tree for commit with oid %s",
+                              oid_hex);
                         continue;
                 }
                 HACKY_LOG("TREE!");
@@ -176,14 +179,15 @@ static int sync_refs(struct push_params params)
                 Digest digest;
                 switch (check_contains_directory(oid, &digest)) {
                 case OidMappingExists:
-                        HACKY_LOG_ARG("SKIPPING OID: %s\n", oid_to_hex(&oid));
-                        continue;
+                        HACKY_LOG("top-level mapping exists!!");
+                        goto print_formatted_digest;
                 case OidMappingDoesNotExist:
-                        HACKY_LOG_ARG("oid %s was not found\n", oid_to_hex(&oid));
+                        HACKY_LOG("top-level mapping does not exist!");
                         break;
-                case OidMappingOtherError:
-                        HACKY_LOG_ARG("error for oid %s\n", oid_to_hex(&oid));
-                        break;
+                default:
+                        HACKY_LOG(
+                                "unrecognized result from check_contains_directory() for top-level oid!!");
+                        return -1;
                 }
 
                 /* (2) [Traverse all the linked objects!!] and: [write them into
@@ -199,13 +203,21 @@ static int sync_refs(struct push_params params)
                 tree_traversal_set_root_oid(&opts.ctx, &oid);
                 if (read_tree_recursive(the_repository, tree, "", 0, 0,
                                         &match_all, tree_reader, &opts)) {
-                        error("failed to read tree for ref '%s' to push",
+                        error("failed to recurse down tree for ref '%s' to push",
                               refname);
-                        goto free_hashmap;
                 }
 
-        free_hashmap:
-                tree_traversal_destroy_context(&opts.ctx);
+                digest = tree_traversal_destroy_context(&opts.ctx);
+                directory_oid_add_mapping(translate_oid_new_oid(oid), digest);
+
+        print_formatted_digest:;
+                char *digest_formatted = format_digest_output(digest);
+                printf("(%s, %s, %s)\n", refname, oid_hex, digest_formatted);
+
+        free_digest_formatted:
+                free_rust_string(digest_formatted);
+                digest_formatted = NULL;
+
         free_tree:
                 free_tree_buffer(tree);
                 continue;
